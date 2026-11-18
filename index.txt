@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="description" content="リーグ戦の対戦表・総当たりの組み合わせ・順位表を作れるツール">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>リーグ戦 対戦表（6チーム）</title>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f4ef; --card:#ffffff; --ink:#2b2a28; --sub:#77726a; --line:#ddd7cc;
+    --head:#efe9de; --diag:#cfc8bb;
+    --win:#e4572e; --winbg:#fde6de;
+    --draw:#c99a06; --drawbg:#fdf3cf;
+    --lose:#2f6fb5; --losebg:#dde9f7;
+    --accent:#2f7d5b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"M PLUS Rounded 1c",system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+  header{padding:18px 16px 6px;max-width:980px;margin:0 auto}
+  h1{margin:0;font-size:22px;font-weight:800;letter-spacing:.02em}
+  #title{border:none;background:transparent;font:inherit;color:inherit;width:100%;padding:2px 0;border-bottom:2px dashed transparent}
+  #title:focus{outline:none;border-bottom-color:var(--line)}
+  .hint{color:var(--sub);font-size:13px;margin:6px 0 0}
+  main{max-width:980px;margin:0 auto;padding:8px 12px 40px}
+  section{background:var(--card);border-radius:14px;padding:14px 12px;margin-top:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  h2{font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  h2::before{content:"";width:6px;height:18px;border-radius:3px;background:var(--accent)}
+  .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{border-collapse:separate;border-spacing:0;width:100%}
+  #grid{min-width:560px;table-layout:fixed}
+  #grid th,#grid td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);text-align:center}
+  #grid tr:first-child th{border-top:1px solid var(--line)}
+  #grid th:first-child,#grid td:first-child{border-left:1px solid var(--line)}
+  #grid th{background:var(--head);font-size:13px;padding:8px 4px;font-weight:700;word-break:break-all}
+  #grid th.corner{background:#e6dfd1;font-size:11px;color:var(--sub);position:sticky;left:0;z-index:2}
+  #grid th.rowh{position:sticky;left:0;z-index:1;width:96px}
+  #grid col.namecol{width:96px}
+  td.cell{height:64px;padding:2px;cursor:pointer;transition:background .15s}
+  td.cell:hover{background:#faf8f3}
+  td.cell .mark{font-size:24px;font-weight:800;line-height:1.1}
+  td.cell .score{font-size:12px;color:var(--sub);margin-top:2px;letter-spacing:.03em}
+  td.cell.empty .mark{color:#d4cec3;font-size:18px}
+  td.win{background:var(--winbg)} td.win .mark{color:var(--win)}
+  td.draw{background:var(--drawbg)} td.draw .mark{color:var(--draw)}
+  td.lose{background:var(--losebg)} td.lose .mark{color:var(--lose)}
+  td.diag{background:repeating-linear-gradient(135deg,var(--diag) 0 2px,#e9e4da 2px 9px)}
+  #standings{min-width:520px}
+  #standings th,#standings td{padding:9px 6px;text-align:center;border-bottom:1px solid var(--line);font-size:14px}
+  #standings th{background:var(--head);font-size:12px;color:#55514b}
+  #standings td.name{text-align:left;font-weight:700}
+  #standings td.pts{font-weight:800;color:var(--accent);font-size:16px}
+  .rank{display:inline-flex;width:28px;height:28px;border-radius:50%;align-items:center;justify-content:center;font-weight:800;background:#eee}
+  .r1{background:#f4c542;color:#5a4300}.r2{background:#d5d9de;color:#3b4148}.r3{background:#e3b08a;color:#5b3218}
+  .tools{display:flex;flex-wrap:wrap;gap:8px}
+  .teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:12px}
+  .teams label{font-size:11px;color:var(--sub)}
+  input[type=text],input[type=number]{width:100%;font:inherit;font-size:16px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+  input:focus{outline:none;border-color:var(--accent)}
+  .pt{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px}
+  .pt input{width:64px;text-align:center}
+  button{font:inherit;font-weight:700;border:none;border-radius:10px;padding:10px 14px;cursor:pointer;font-size:14px}
+  .btn{background:var(--head);color:var(--ink)}
+  .btn.danger{background:#f6dcd6;color:#a23b22}
+  .btn.primary{background:var(--accent);color:#fff}
+  /* dialog */
+  .overlay{position:fixed;inset:0;background:rgba(30,28,25,.45);display:none;align-items:flex-end;justify-content:center;z-index:50}
+  .overlay.open{display:flex}
+  .sheet{background:#fff;width:100%;max-width:460px;border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));animation:up .2s ease}
+  @media(min-width:600px){.overlay{align-items:center}.sheet{border-radius:18px}}
+  @keyframes up{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
+  .vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;text-align:center;margin-bottom:14px}
+  .vs .tn{font-weight:800;font-size:17px;word-break:break-all}
+  .vs .x{color:var(--sub);font-size:13px}
+  .scorebox{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:14px}
+  .scorebox input{text-align:center;font-size:28px;font-weight:800;padding:10px 4px}
+  .scorebox .dash{font-size:24px;font-weight:800;color:var(--sub)}
+  .marks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
+  .marks button{font-size:30px;padding:10px 0;background:#f3f1ec;border:2.5px solid transparent}
+  .marks button[data-m="○"].on{background:var(--winbg);border-color:var(--win);color:var(--win)}
+  .marks button[data-m="△"].on{background:var(--drawbg);border-color:var(--draw);color:var(--draw)}
+  .marks button[data-m="✖︎"].on{background:var(--losebg);border-color:var(--lose);color:var(--lose)}
+  .marks small{display:block;font-size:11px;font-weight:500;color:var(--sub)}
+  .note{font-size:12px;color:var(--sub);margin:4px 0 14px;min-height:16px}
+  .row{display:flex;gap:8px}
+  .row button{flex:1}
+  .confirm .sheet p{margin:0 0 16px;line-height:1.7}
+  .bar{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .status{font-size:12px;color:var(--accent)}
+  .status.err{color:#a23b22}
+  .btn.small{padding:5px 10px;font-size:12px}
+  .lbl{font-size:11px;color:var(--sub);display:block}
+  button:disabled{opacity:.5}
+  .count{font-size:12px;font-weight:500;color:var(--sub);margin-left:auto}
+  .rounds{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+  .round{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fcfbf8}
+  .rhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:14px}
+  .rest{font-size:12px;color:var(--sub);background:#eee9df;border-radius:999px;padding:2px 10px}
+  .game{width:100%;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:9px 8px;margin-top:6px;font-weight:700;font-size:14px;color:var(--ink)}
+  .game:first-of-type{margin-top:0}
+  .game.done{border-color:#bcd9ca;background:#f3faf6}
+  .game .gt{word-break:break-all}
+  .game .gt:first-child{text-align:right}
+  .game .gt:last-child{text-align:left}
+  .game .gt i{font-style:normal;font-weight:800;margin:0 4px}
+  .game .gt.win i{color:var(--win)} .game .gt.draw i{color:var(--draw)} .game .gt.lose i{color:var(--lose)}
+  .game .gs{font-size:13px;color:var(--sub);min-width:52px;text-align:center;background:#f3f1ec;border-radius:8px;padding:3px 6px}
+  .game.done .gs{color:var(--ink);background:#e2f1e8}
+  .counter{display:flex;align-items:center;gap:10px;margin:4px 0 12px}
+  .counter .btn{width:44px;height:44px;padding:0;font-size:20px}
+  #nView{font-size:24px;font-weight:800;min-width:32px;text-align:center}
+  .counter .unit{font-size:13px;color:var(--sub);margin-left:-6px}
+  .note.warn{color:#a23b22}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titleView">リーグ戦 対戦表</h1>
+  <p class="hint">マスや試合をタップして、得点と ○・△・✖︎ を入れます。相手チーム側にも自動で入ります。</p>
+  <div class="bar"><span class="status" id="status"></span></div>
+</header>
+<main>
+  <section>
+    <h2>対戦表</h2>
+    <div class="scroll"><table id="grid"></table></div>
+  </section>
+
+  <section>
+    <h2>総当たりの組み合わせ <span class="count" id="progress"></span></h2>
+    <div id="rounds" class="rounds"></div>
+    <p class="hint">同じ回戦の試合は同時に行えます（どのチームも1回戦に1試合）。</p>
+  </section>
+
+  <section>
+    <h2>順位表</h2>
+    <div class="scroll"><table id="standings"></table></div>
+    <p class="hint">順位は「勝点 → 得失点差 → 総得点」の順で決めています。</p>
+  </section>
+
+  <section>
+    <h2>設定</h2>
+    <label class="lbl">大会名</label><input type="text" id="title" style="margin-bottom:12px">
+    <label class="lbl">チーム数</label>
+    <div class="counter">
+      <button class="btn" id="nMinus" aria-label="チームを減らす">－</button>
+      <span id="nView">6</span><span class="unit">チーム</span>
+      <button class="btn" id="nPlus" aria-label="チームを増やす">＋</button>
+    </div>
+    <div class="teams" id="teamInputs"></div>
+    <div class="pt" style="margin-bottom:14px">
+      勝点：勝ち <input type="number" id="pWin" min="0"> 引き分け <input type="number" id="pDraw" min="0"> 負け <input type="number" id="pLose" min="0">
+    </div>
+    <p class="note warn" id="setNote"></p>
+    <div class="tools">
+      <button class="btn primary" id="saveSettings">設定を保存</button>
+      <button class="btn" id="copyBtn">結果をコピー</button>
+      <button class="btn" id="exportBtn">データを書き出す</button>
+      <button class="btn" id="importBtn">データを読み込む</button>
+      <button class="btn danger" id="resetBtn">結果をすべて消す</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+    <p class="note" id="copyNote"></p>
+    <p class="hint">データはこの端末のブラウザに保存されます。別の端末で続きをするときや、念のための保存には「データを書き出す」を使ってください。</p>
+  </section>
+</main>
+
+<div class="overlay" id="dlg">
+  <div class="sheet" role="dialog" aria-modal="true">
+    <div class="vs"><div class="tn" id="dA"></div><div class="x">たい</div><div class="tn" id="dB"></div></div>
+    <div class="scorebox">
+      <input type="number" id="sA" inputmode="numeric" placeholder="-" min="0">
+      <div class="dash">-</div>
+      <input type="number" id="sB" inputmode="numeric" placeholder="-" min="0">
+    </div>
+    <div class="marks" id="marks">
+      <button data-m="○">○<small>かち</small></button>
+      <button data-m="△">△<small>ひきわけ</small></button>
+      <button data-m="✖︎">✖︎<small>まけ</small></button>
+    </div>
+    <p class="note" id="dNote"></p>
+    <div class="row">
+      <button class="btn danger" id="dClear">消す</button>
+      <button class="btn" id="dCancel">やめる</button>
+      <button class="btn primary" id="dSave">決定</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay confirm" id="cfm">
+  <div class="sheet">
+    <p id="cfmText"></p>
+    <div class="row">
+      <button class="btn" id="cNo">やめる</button>
+      <button class="btn danger" id="cYes">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const INV = {"○":"✖︎","✖︎":"○","△":"△"};
+let state = { title:"", n:6, teams:[], allTeams:[], pts:{win:3,draw:1,lose:0}, res:{}, minTeams:2, maxTeams:12 };
+let busy = false;
+let draftN = null;          // 設定欄で変更中のチーム数
+let draftNames = null;      // 設定欄で入力中のチーム名（12チーム分）
+const $ = id => document.getElementById(id);
+
+const KEY="league-taisenhyo-v2", MIN_T=2, MAX_T=12;
+function defaultState(){ return {title:"リーグ戦 対戦表", n:6, allTeams:Array.from({length:MAX_T},(_,i)=>`チーム${i+1}`), pts:{win:3,draw:1,lose:0}, res:{}}; }
+let store = defaultState();
+try{ const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.allTeams) store=Object.assign(defaultState(),s); }catch(e){}
+function persist(){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){ setStatus("このブラウザでは保存できません。書き出しで保存してください。", true); } }
+function view(){
+  const n=Math.max(MIN_T,Math.min(MAX_T,Number(store.n)||6));
+  const res={}; Object.keys(store.res).forEach(k=>{ if(k.split("-").every(x=>Number(x)<n)) res[k]=store.res[k]; });
+  return {title:store.title, n, teams:store.allTeams.slice(0,n), allTeams:store.allTeams.slice(), pts:Object.assign({},store.pts), res, minTeams:MIN_T, maxTeams:MAX_T};
+}
+const api={
+  getData(){ return view(); },
+  saveResult(i,j,my,op,m){
+    const a=Math.min(i,j), b=Math.max(i,j), k=`${a}-${b}`;
+    if(!m) delete store.res[k];
+    else store.res[k] = i<j ? {a:String(my),b:String(op),m} : {a:String(op),b:String(my),m:INV[m]};
+    persist(); return view();
+  },
+  saveSettings(s){
+    store.title=s.title||"リーグ戦 対戦表";
+    store.n=Math.max(MIN_T,Math.min(MAX_T,s.n));
+    store.pts={win:Number(s.pts.win)||0,draw:Number(s.pts.draw)||0,lose:Number(s.pts.lose)||0};
+    s.teams.forEach((t,i)=>{ store.allTeams[i]=(String(t).trim())||`チーム${i+1}`; });
+    Object.keys(store.res).forEach(k=>{ if(k.split("-").some(x=>Number(x)>=store.n)) delete store.res[k]; });
+    persist(); return view();
+  },
+  resetResults(){ store.res={}; persist(); return view(); }
+};
+
+
+function setStatus(t, err){ const el=$("status"); el.textContent=t; el.className = err ? "status err" : "status"; }
+function call(fn, ...args){ return Promise.resolve(api[fn](...args)); }
+function settingsDirty(){ return draftN!==null || draftNames!==null; }
+async function load(silent){
+  if(busy) return;
+  
+  try{
+    const d = await call("getData");
+    state = d;
+    if(!$("dlg").classList.contains("open")) renderAll();
+    if(!silent || (!settingsDirty() && !settingsFocused())) renderSettings();
+
+  }catch(e){ setStatus("読み込めませんでした：" + e.message, true); }
+}
+function settingsFocused(){ const a=document.activeElement; return a && (a.dataset.t!=null || ["pWin","pDraw","pLose","title"].includes(a.id)); }
+
+function get(i,j){
+  const k = i<j ? `${i}-${j}` : `${j}-${i}`, r = state.res[k];
+  if(!r) return null;
+  if(i<j) return {my:r.a, op:r.b, m:r.m};
+  return {my:r.b, op:r.a, m:r.m ? INV[r.m] : ""};
+}
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = (a,b) => (a===""||a==null||b===""||b==null) ? "" : `${a}-${b}`;
+const cls = m => !m ? "empty" : m==="○"?"win":m==="△"?"draw":"lose";
+
+/* 対戦表 */
+function renderGrid(){
+  const N = state.n;
+  $("grid").style.minWidth = (96 + N*80) + "px";
+  let h = `<colgroup><col class="namecol">${'<col>'.repeat(N)}</colgroup><tr><th class="corner">チーム名</th>`;
+  state.teams.forEach(t=> h += `<th>${esc(t)}</th>`);
+  h += "</tr>";
+  for(let i=0;i<N;i++){
+    h += `<tr><th class="rowh">${esc(state.teams[i])}</th>`;
+    for(let j=0;j<N;j++){
+      if(i===j){ h += `<td class="diag"></td>`; continue; }
+      const r = get(i,j);
+      h += `<td class="cell ${cls(r&&r.m)}" data-i="${i}" data-j="${j}"><div class="mark">${r&&r.m?r.m:"・"}</div><div class="score">${r?fmt(r.my,r.op):""}</div></td>`;
+    }
+    h += "</tr>";
+  }
+  $("grid").innerHTML = h;
+}
+
+/* 総当たりの組み合わせ（サークル方式） */
+function makeRounds(n){
+  const arr=[...Array(n).keys()]; if(n%2) arr.push(-1);
+  const m=arr.length, rounds=[];
+  for(let r=0;r<m-1;r++){
+    const games=[]; let rest=-1;
+    for(let k=0;k<m/2;k++){
+      const x=arr[k], y=arr[m-1-k];
+      if(x===-1) rest=y; else if(y===-1) rest=x; else games.push([Math.min(x,y),Math.max(x,y)]);
+    }
+    rounds.push({games,rest});
+    arr.splice(1,0,arr.pop());
+  }
+  return rounds;
+}
+function renderRounds(){
+  const N=state.n, rounds=makeRounds(N);
+  let done=0, total=N*(N-1)/2, h="";
+  rounds.forEach((rd,k)=>{
+    h += `<div class="round"><div class="rhead"><b>第${k+1}回戦</b>${rd.rest>=0?`<span class="rest">休み：${esc(state.teams[rd.rest])}</span>`:""}</div>`;
+    rd.games.forEach(([a,b])=>{
+      const r=get(a,b), ok=r&&r.m; if(ok) done++;
+      h += `<button class="game ${ok?"done":""}" data-i="${a}" data-j="${b}">
+        <span class="gt ${ok?cls(r.m):""}">${ok?`<i>${r.m}</i>`:""}${esc(state.teams[a])}</span>
+        <span class="gs">${ok ? (fmt(r.my,r.op)||"済") : "vs"}</span>
+        <span class="gt ${ok?cls(INV[r.m]):""}">${esc(state.teams[b])}${ok?`<i>${INV[r.m]}</i>`:""}</span>
+      </button>`;
+    });
+    h += `</div>`;
+  });
+  $("rounds").innerHTML = h;
+  $("progress").textContent = `${done} / ${total} 試合おわり`;
+}
+
+/* 順位表 */
+function stats(){
+  const P=state.pts, N=state.n;
+  const rows = state.teams.map((name,i)=>{
+    let w=0,d=0,l=0,gf=0,ga=0,played=0;
+    for(let j=0;j<N;j++){ if(i===j) continue; const r=get(i,j); if(!r) continue;
+      if(r.m==="○")w++; else if(r.m==="△")d++; else if(r.m==="✖︎")l++;
+      if(r.m) played++;
+      const a=Number(r.my), b=Number(r.op);
+      if(r.my!==""&&r.op!==""&&!isNaN(a)&&!isNaN(b)){ gf+=a; ga+=b; }
+    }
+    return {i,name,w,d,l,gf,ga,diff:gf-ga,played,pts:w*P.win+d*P.draw+l*P.lose};
+  });
+  const sorted=[...rows].sort((x,y)=>y.pts-x.pts||y.diff-x.diff||y.gf-x.gf||x.i-y.i);
+  sorted.forEach((r,k)=>{ const p=sorted[k-1]; r.rank=(p&&p.pts===r.pts&&p.diff===r.diff&&p.gf===r.gf)?p.rank:k+1; });
+  return sorted;
+}
+function renderStandings(){
+  let h = `<tr><th>順位</th><th style="text-align:left">チーム</th><th>試合</th><th>勝</th><th>分</th><th>負</th><th>得点</th><th>失点</th><th>差</th><th>勝点</th></tr>`;
+  stats().forEach(r=>{
+    h += `<tr><td><span class="rank ${r.rank<=3?'r'+r.rank:''}">${r.rank}</span></td><td class="name">${esc(r.name)}</td><td>${r.played}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.diff>0?'+':''}${r.diff}</td><td class="pts">${r.pts}</td></tr>`;
+  });
+  $("standings").innerHTML = h;
+}
+
+/* 設定欄 */
+function curN(){ return draftN!==null ? draftN : state.n; }
+function curNames(){ return draftNames || state.allTeams.slice(); }
+function renderTeamInputs(){
+  const n=curN(), names=curNames();
+  $("nView").textContent=n;
+  $("nMinus").disabled = n<=state.minTeams;
+  $("nPlus").disabled = n>=state.maxTeams;
+  $("teamInputs").innerHTML = names.slice(0,n).map((t,i)=>
+    `<div><label>チーム${i+1}</label><input type="text" data-t="${i}" value="${esc(t)}"></div>`).join("");
+  const lost = removedResults(n);
+  $("setNote").textContent = settingsDirty()
+    ? (lost ? `チーム数を減らすと、外れるチームの試合結果（${lost}試合）は消えます。` : "「設定を保存」を押すと反映されます。")
+    : "";
+}
+function removedResults(n){
+  return Object.keys(state.res).filter(k=>k.split("-").some(x=>Number(x)>=n)).length;
+}
+function renderSettings(){
+  draftN=null; draftNames=null;
+  pWin.value=state.pts.win; pDraw.value=state.pts.draw; pLose.value=state.pts.lose;
+  $("title").value=state.title;
+  renderTeamInputs();
+}
+function renderAll(){
+  $("titleView").textContent=state.title; document.title=state.title;
+  renderGrid(); renderRounds(); renderStandings();
+}
+
+/* 入力ダイアログ */
+let cur=null, mark="", manual=false;
+const dlg=$("dlg"), sA=$("sA"), sB=$("sB"), dNote=$("dNote");
+function setMark(m){ mark=m; document.querySelectorAll("#marks button").forEach(b=>b.classList.toggle("on",b.dataset.m===m)); }
+function autoMark(){
+  if(manual) return;
+  const a=sA.value, b=sB.value; if(a===""||b==="") return;
+  setMark(+a>+b?"○":+a<+b?"✖︎":"△");
+  dNote.textContent="得点から自動で選びました（タップで変えられます）";
+}
+function openDlg(i,j){
+  cur={i,j}; const r=get(i,j);
+  $("dA").textContent=state.teams[i]; $("dB").textContent=state.teams[j];
+  sA.value=r?r.my:""; sB.value=r?r.op:"";
+  manual=!!(r&&r.m); setMark(r?r.m:""); dNote.textContent="";
+  dlg.classList.add("open");
+}
+function closeDlg(){ dlg.classList.remove("open"); cur=null; renderAll(); }
+function openFrom(e, sel){ const t=e.target.closest(sel); if(t) openDlg(+t.dataset.i,+t.dataset.j); }
+$("grid").addEventListener("click",e=>openFrom(e,"td.cell"));
+$("rounds").addEventListener("click",e=>openFrom(e,"button.game"));
+$("marks").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  manual=true; setMark(mark===b.dataset.m?"":b.dataset.m); dNote.textContent="";
+});
+sA.addEventListener("input",autoMark); sB.addEventListener("input",autoMark);
+
+async function send(i,j,my,op,m){
+  busy=true; 
+  document.querySelectorAll("#dlg button").forEach(b=>b.disabled=true);
+  try{
+    state = await call("saveResult", i, j, my, op, m);
+    busy=false; closeDlg(); 
+  }catch(e){ busy=false; dNote.textContent="保存できませんでした：" + e.message; setStatus("保存できませんでした", true); }
+  finally{ document.querySelectorAll("#dlg button").forEach(b=>b.disabled=false); }
+}
+$("dSave").onclick=()=>{
+  if(!mark && sA.value===""&&sB.value===""){ send(cur.i,cur.j,"","",""); return; }
+  if(!mark){ dNote.textContent="○・△・✖︎ のどれかを選んでください"; return; }
+  send(cur.i,cur.j,sA.value,sB.value,mark);
+};
+$("dClear").onclick=()=>send(cur.i,cur.j,"","","");
+$("dCancel").onclick=closeDlg;
+dlg.addEventListener("click",e=>{ if(e.target===dlg && !busy) closeDlg(); });
+
+/* 設定の操作 */
+function stepN(d){
+  const n=Math.max(state.minTeams, Math.min(state.maxTeams, curN()+d));
+  if(!draftNames) draftNames=curNames();
+  draftN = n;
+  renderTeamInputs();
+}
+$("nMinus").onclick=()=>stepN(-1);
+$("nPlus").onclick=()=>stepN(1);
+$("teamInputs").addEventListener("input",e=>{
+  const i=e.target.dataset.t; if(i==null) return;
+  if(!draftNames) draftNames=curNames();
+  draftNames[i]=e.target.value;
+  if(draftN===null) draftN=state.n;
+  $("setNote").textContent = removedResults(curN()) ? $("setNote").textContent : "「設定を保存」を押すと反映されます。";
+});
+
+let cfmAction=null;
+function ask(text, action){ $("cfmText").textContent=text; cfmAction=action; $("cfm").classList.add("open"); }
+$("cNo").onclick=()=>{ $("cfm").classList.remove("open"); cfmAction=null; };
+$("cYes").onclick=()=>{ $("cfm").classList.remove("open"); const a=cfmAction; cfmAction=null; if(a) a(); };
+
+async function doSaveSettings(){
+  const n=curN();
+  const s={
+    title:$("title").value, n,
+    pts:{ win:Number(pWin.value)||0, draw:Number(pDraw.value)||0, lose:Number(pLose.value)||0 },
+    teams:curNames().slice(0,n)
+  };
+  busy=true; setStatus("設定を保存中…");
+  try{ state = await call("saveSettings", s); busy=false; renderAll(); renderSettings(); setStatus("設定を保存しました"); }
+  catch(e){ busy=false; setStatus("設定を保存できませんでした：" + e.message, true); }
+}
+$("saveSettings").onclick=()=>{
+  const lost=removedResults(curN());
+  if(lost) ask(`チーム数を${curN()}にします。外れるチームの試合結果（${lost}試合）は消えて、元に戻せません。よろしいですか？`, doSaveSettings);
+  else doSaveSettings();
+};
+$("resetBtn").onclick=()=>ask("すべての試合結果を消します。チーム名と勝点の設定は残ります。ほかの先生の画面からも消えます。よろしいですか？", async()=>{
+  busy=true; setStatus("消しています…");
+  try{ state = await call("resetResults"); busy=false; renderAll(); setStatus("結果をすべて消しました"); }
+  catch(e){ busy=false; setStatus("消せませんでした：" + e.message, true); }
+});
+$("exportBtn").onclick=()=>{
+  const blob=new Blob([JSON.stringify(Object.assign({app:"league-taisenhyo",version:2},store),null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  const d=new Date(), p=x=>String(x).padStart(2,"0");
+  a.href=URL.createObjectURL(blob);
+  a.download=`${(store.title||"対戦表").replace(/[\\/:*?"<>|]/g,"")}_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  setStatus("データを書き出しました");
+};
+$("importBtn").onclick=()=>$("importFile").click();
+$("importFile").onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const d=JSON.parse(rd.result);
+      if(!d||!Array.isArray(d.allTeams)||typeof d.res!=="object") throw new Error();
+      ask("今の内容を、読み込んだデータで置きかえます。よろしいですか？",()=>{
+        store=Object.assign(defaultState(),{title:d.title,n:d.n,allTeams:d.allTeams.concat(defaultState().allTeams.slice(d.allTeams.length)).slice(0,MAX_T),pts:d.pts||{win:3,draw:1,lose:0},res:d.res});
+        persist(); load(false); setStatus("データを読み込みました");
+      });
+    }catch(err){ setStatus("このファイルは読み込めませんでした", true); }
+    e.target.value="";
+  };
+  rd.readAsText(f);
+};
+$("copyBtn").onclick=async()=>{
+  const lines=[state.title,""];
+  makeRounds(state.n).forEach((rd,k)=>{
+    lines.push(`【第${k+1}回戦】${rd.rest>=0?`（休み：${state.teams[rd.rest]}）`:""}`);
+    rd.games.forEach(([a,b])=>{ const r=get(a,b);
+      lines.push(r&&r.m ? `${state.teams[a]} ${r.m} ${fmt(r.my,r.op)} ${INV[r.m]} ${state.teams[b]}`.replace(/\s+/g," ") : `${state.teams[a]} vs ${state.teams[b]}`); });
+  });
+  lines.push("","【順位】"); stats().forEach(r=>lines.push(`${r.rank}位 ${r.name}　勝点${r.pts}（${r.w}勝${r.d}分${r.l}敗・得失点差${r.diff>0?'+':''}${r.diff}）`));
+  try{ await navigator.clipboard.writeText(lines.join("\n")); $("copyNote").textContent="コピーしました。"; }
+  catch(e){ $("copyNote").textContent="コピーできませんでした。"; }
+};
+
+load(false);
+</script>
+</body>
+</html>
